@@ -10,6 +10,10 @@ import {
 } from 'phosphor/lib/collections/vector';
 
 import {
+  map, filter, toArray
+} from 'phosphor/lib/algorithm/iteration';
+
+import {
   IDisposable
 } from 'phosphor/lib/core/disposable';
 
@@ -150,9 +154,12 @@ class ConsoleHistory implements IConsoleHistory {
     if (!this._hasSession) {
       this._hasSession = true;
       this._placeholder = placeholder;
+      // Filter the history with the placeholder string.
+      this.setFilter(placeholder);
+      this._cursor = this._filtered.length;
     }
 
-    let content = this._history.at(--this._cursor);
+    let content = this._filtered.at(--this._cursor);
     this._cursor = Math.max(0, this._cursor);
     return Promise.resolve(content);
   }
@@ -170,10 +177,13 @@ class ConsoleHistory implements IConsoleHistory {
     if (!this._hasSession) {
       this._hasSession = true;
       this._placeholder = placeholder;
+      // Filter the history with the placeholder string.
+      this.setFilter(placeholder);
+      this._cursor = this._filtered.length;
     }
 
-    let content = this._history.at(++this._cursor);
-    this._cursor = Math.min(this._history.length, this._cursor);
+    let content = this._filtered.at(++this._cursor);
+    this._cursor = Math.min(this._filtered.length, this._cursor);
     return Promise.resolve(content);
   }
 
@@ -227,11 +237,31 @@ class ConsoleHistory implements IConsoleHistory {
     this._cursor = this._history.length;
   }
 
+  /**
+   * Filters the history for matches to the provided string, and stores
+   * the result in _filtered.
+   *
+   * @param filterStr The string to match history entries with.
+   *
+   * #### Notes
+   * The filter is matched with the start of each string, so that the
+   * filter "a =" matches "a = 1" and "a = 2" etc.
+   */
+  protected setFilter(filterStr: string = ""): void {
+
+    // Apply the new filter and get a new iterator.
+    this._filtered = new Vector<string>(toArray(filter<string>(
+      this._history,
+      str => filterStr == str.slice(0, filterStr.length)
+    )));
+  }
+
   private _cursor = 0;
   private _hasSession = false;
   private _history: Vector<string> = null;
   private _kernel: Kernel.IKernel = null;
   private _placeholder: string = '';
+  private _filtered: Vector<string> = null;
 }
 
 
